@@ -1,0 +1,93 @@
+pragma solidity ^0.8.0;
+
+import "./IERC20.sol";
+
+contract ERC20 is IERC20 {
+    //These variables represent the name, symbol, and number of decimal places for the token.
+    string public name;
+    string public symbol;
+    uint256 public decimals;
+    mapping(address => uint256) internal balances;
+    mapping(address => mapping(address => uint256)) private allowed;
+    uint256 internal _totalSupply;
+
+
+    //This declares the owner variable 
+    address public owner;
+    //The onlyOwner modifier that restricts access to certain functions to only the contract owner. 
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only for the owner");
+        _;
+    }
+    
+    //This is the constructor function that initializes the token's variables and sets the totalSupply to the owner's address.
+    constructor (
+        string memory name_,
+        string memory symbol_,
+        uint256 decimals_,
+        uint256 totalSupply_
+    ) {
+        name = name_;
+        symbol = symbol_;
+        decimals = decimals_;
+        _totalSupply = totalSupply_;
+        balances[msg.sender] = totalSupply_;
+        owner = msg.sender;
+    }
+    
+    //This is a view function that return the total supply.
+    function totalSupply() external view override returns (uint256) {
+        return _totalSupply;
+    }
+    //This is a view function that return the balance of an address.
+    function balanceOf(address _owner) external view override returns (uint256) {
+        return balances[_owner];
+    }
+    
+    //This function transfers tokens from the sender to another address.
+    function transfer(address _to, uint256 _value) external override returns (bool) {
+        //checking that the sender has enough tokens, the recipient address is valid, and the transfer amount is not too large.
+        require(balances[msg.sender] >= _value, "Not enough money on balance");
+        require(balances[_to] + _value >= balances[_to], "The recipient can not accept such a large amount");
+        require(_to != address(0), "Invalid recipient address");
+        //fee 5 percent
+        uint256 fee = _value / 100 * 5;
+
+        balances[msg.sender] -= _value;
+        balances[owner] += fee;
+        balances[_to] += _value - fee;
+
+        emit Transfer(msg.sender, _to, _value);
+
+        return true;
+    }
+
+    function transferFrom(address _from, address _to, uint256 _value) external override returns (bool) {
+        require(balances[_from] >= _value, "Not enough money on balance");
+        require(allowed[_from][msg.sender] >= _value, "No allowed to transfer the amount");
+        require(balances[_to] + _value >= balances[_to], "The recipient cannot accept such a large amount");
+        require(_to != address(0), "Invalid recipient address");
+
+        allowed[_from][msg.sender] -= _value;
+
+        uint256 fee = _value / 100 * 5;
+
+        balances[_from] -= _value;
+        balances[owner] += fee;
+        balances[_to] += _value - fee;
+
+        emit Transfer(_from, _to, _value);
+
+        return true;
+    }
+
+    function approve(address _spender, uint256 _value) external override returns (bool) {
+        allowed[msg.sender][_spender] = _value;
+        emit Approval(msg.sender, _spender, _value);
+        return true;
+    }
+
+    function allowance(address _owner, address _spender) external view override returns (uint256) {
+        return allowed[_owner][_spender];
+    }
+}
